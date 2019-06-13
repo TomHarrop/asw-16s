@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import multiprocessing
 
 #############
 # FUNCTIONS #
@@ -15,6 +16,9 @@ def indiv_to_fastq(wildcards):
 ###########
 
 bbmap_container = 'shub://TomHarrop/singularity-containers:bbmap_38.50b'
+kraken_container = 'shub://TomHarrop/singularity-containers:kraken_2.0.8beta'
+bracken_container = 'shub://TomHarrop/singularity-containers:bracken_2.2'
+bioc_container = 'shub://TomHarrop/singularity-containers:bioconductor_3.9'
 
 r1_path = 'data/raw/4826-{indiv}-0-1_S{sindiv}_L001_R1_001.fastq.gz'
 r2_path = 'data/raw/4826-{indiv}-0-1_S{sindiv}_L001_R2_001.fastq.gz'
@@ -24,6 +28,20 @@ r2_path = 'data/raw/4826-{indiv}-0-1_S{sindiv}_L001_R2_001.fastq.gz'
 ########
 
 all_indivs = sorted(set(glob_wildcards(r1_path).indiv))
+
+# exclude negatives from kraken
+neg_indivs = ['211',
+              '212',
+              '213',
+              '214',
+              '215',
+              '216',
+              '217',
+              '218',
+              '219']
+
+kraken_indivs = [x for x in all_indivs
+                 if x not in neg_indivs]
 
 indiv_to_r1 = {
     x: r1_path.format(indiv=x, sindiv=int(x))
@@ -38,7 +56,93 @@ indiv_to_r2 = {
 
 rule target:
     input:
-        'output/010_trimmed/merge_stats.txt'
+        'output/010_trimmed/merge_stats.txt',
+        expand('output/010_trimmed/{indiv}/readlength.txt',
+               indiv=all_indivs),
+        'output/040_phyloseq/ps.Rds'
+
+rule construct_phyloseq:
+    input:
+        mpa_files = expand(
+            'output/030_bracken/{indiv}/bracken_report_mpa.txt',
+            indiv=kraken_indivs),
+        sample_catalog = 'data/sample_catalog.csv',
+        indiv_mapping = 'data/ogbf_sample_info.csv'
+    output:
+        phyloseq = 'output/040_phyloseq/ps.Rds',
+        parsed_data = 'output/040_phyloseq/parsed_data.csv'
+    log:
+        'output/logs/040_phyloseq/construct_phyloseq.log'
+    singularity:
+        bioc_container
+    script:
+        'src/construct_phyloseq.R'
+
+
+rule mpa_report:
+    input:
+        'output/020_kraken/{indiv}/kraken_report_bracken.txt'
+    output:
+        'output/030_bracken/{indiv}/bracken_report_mpa.txt'
+    log:
+        'output/logs/030_bracken/{indiv}_bracken-mpa.log'
+    singularity:
+        bracken_container
+    shell:
+        'kreport2mpa.py '
+        '-r {input} '
+        '-o {output} '
+        '&> {log}'
+
+rule bracken:
+    input:
+        report = 'output/020_kraken/{indiv}/kraken_report.txt',
+        db = 'data/20190614-silva',
+    params:
+        readlength = '463',
+        threshold = '1',
+        level = 'G'
+    output:
+        report = 'output/030_bracken/{indiv}/bracken_report.txt',
+        crap_file = 'output/020_kraken/{indiv}/kraken_report_bracken.txt'
+    log:
+        'output/logs/030_bracken/{indiv}_bracken.log'
+    singularity:
+        bracken_container
+    shell:
+        'bracken '
+        '-d {input.db} '
+        '-i {input.report} '
+        '-o {output.report} '
+        '-r {params.readlength} '
+        '-t {params.threshold} '
+        '-l {params.level} '
+        '&> {log} '
+
+rule kraken:
+    input:
+        fq = 'output/010_trimmed/{indiv}/merged.fastq.gz',
+        db = 'data/20190614-silva'
+    output:
+        out = 'output/020_kraken/{indiv}/kraken_out.txt',
+        report = 'output/020_kraken/{indiv}/kraken_report.txt'
+    log:
+        'output/logs/020_kraken/{indiv}_kraken.log'
+    threads:
+        multiprocessing.cpu_count()
+    singularity:
+        kraken_container
+    shell:
+        'kraken2 '
+        '--threads {threads} '
+        '--db {input.db} '
+        '--report-zero-counts '
+        # '--use-mpa-style '
+        '--output {output.out} '
+        '--report {output.report} '
+        '--use-names '
+        '{input.fq} '
+        '&> {log}'
 
 rule merged_stats:
     input:
@@ -58,6 +162,25 @@ rule merged_stats:
         '> {output} '
         '2> {log}'
 
+rule readlength:
+    input:
+        'output/010_trimmed/{indiv}/merged.fastq.gz'
+    output:
+        'output/010_trimmed/{indiv}/readlength.txt'
+    log:
+        'output/logs/010_trimmed/{indiv}_readlength.log'
+    singularity:
+        bbmap_container
+    shell:
+        'readlength.sh '
+        'in={input} '
+        'out={output} '
+        'bin=1 '
+        'max=1000 '
+        'nzo=f '
+        '2> {log}'
+
+
 rule trim_merge:
     input:
         unpack(indiv_to_fastq)
@@ -72,10 +195,14 @@ rule trim_merge:
         bbduk1 = 'output/logs/010_trimmed/{indiv}_bbduk1.log',
         bbduk2 = 'output/logs/010_trimmed/{indiv}_bbduk2.log',
         bbmerge = 'output/logs/010_trimmed/{indiv}_bbmerge.log'
+    threads:
+        multiprocessing.cpu_count()
     singularity:
         bbmap_container
     shell:
         'bbduk.sh '
+        'threads={threads} '
+        '-Xmx12g '
         'in={input.r1} '
         'in2={input.r2} '
         'out=stdout.fastq '
@@ -90,6 +217,7 @@ rule trim_merge:
         '2> {log.bbduk1} '
         ' | '
         'bbmerge.sh '
+        '-Xmx12g '
         'in=stdin.fastq '
         'int=t '
         'out=stdout.fastq '
@@ -101,6 +229,8 @@ rule trim_merge:
         '2> {log.bbmerge}'
         ' | '
         'bbduk.sh '
+        'threads={threads} '
+        '-Xmx12g '
         'in=stdin.fastq '
         'int=t '
         'maxns=0 '
