@@ -59,7 +59,21 @@ rule target:
         'output/010_trimmed/merge_stats.txt',
         expand('output/010_trimmed/{indiv}/readlength.txt',
                indiv=all_indivs),
-        'output/040_phyloseq/ps.Rds'
+        'output/040_phyloseq/ps_filtered.Rds',
+
+
+rule filter_otus:
+    input:
+        phyloseq = 'output/040_phyloseq/ps.Rds',
+    output:
+        phyloseq = 'output/040_phyloseq/ps_filtered.Rds',
+    log:
+        'output/logs/040_phyloseq/filter_otus.log'
+    singularity:
+        bioc_container
+    script:
+        'src/filter_otus.R'
+
 
 rule construct_phyloseq:
     input:
