@@ -60,7 +60,21 @@ rule target:
         expand('output/010_trimmed/{indiv}/readlength.txt',
                indiv=all_indivs),
         'output/040_phyloseq/filtered_reads_per_indiv.pdf',
-        'output/040_phyloseq/alpha_diversity.pdf'
+        'output/040_phyloseq/alpha_diversity.pdf',
+        'output/040_phyloseq/ordination.pdf'
+
+
+rule ordination:
+    input:
+        phyloseq = 'output/040_phyloseq/ps_filtered.Rds',
+    output:
+        plot = 'output/040_phyloseq/ordination.pdf'
+    log:
+        'output/logs/040_phyloseq/ordination.log'
+    singularity:
+        bioc_container
+    script:
+        'src/ordination.R'
 
 
 rule alpha_diversity:
