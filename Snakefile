@@ -59,8 +59,21 @@ rule target:
         'output/010_trimmed/merge_stats.txt',
         expand('output/010_trimmed/{indiv}/readlength.txt',
                indiv=all_indivs),
-        'output/040_phyloseq/ps_filtered.Rds',
+        'output/040_phyloseq/filtered_reads_per_indiv.pdf'
 
+
+rule filtered_reads_per_indiv:
+    input:
+        phyloseq = 'output/040_phyloseq/ps_filtered.Rds',
+    output:
+        plot = 'output/040_phyloseq/filtered_reads_per_indiv.pdf'
+    log:
+        'output/logs/040_phyloseq/filtered_reads_per_indiv.log'
+    singularity:
+        bioc_container
+    script:
+        'src/filtered_reads_per_indiv.R'
+        
 
 rule filter_otus:
     input:
