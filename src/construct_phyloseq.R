@@ -127,7 +127,7 @@ sd_wide <- unique(kraken_level_subset[, .(indiv_name,
                                           Location,
                                           Pasture,
                                           Parasitoid)])
-sample_data <- data.frame(sd_wide, row.names = "indiv_name")
+sample_dt <- sample_data(data.frame(sd_wide, row.names = "indiv_name"))
 
 otu_wide <- dcast(kraken_level_subset,
                   my_taxid ~ indiv_name,
@@ -147,7 +147,9 @@ tax_dt <- unique(kraken_level_subset[, .(my_taxid,
 tax <- tax_table(as.matrix(data.frame(tax_dt, row.names = "my_taxid")))
 
 # combine
-ps <- phyloseq(otu, sample_data, tax)
+ps <- phyloseq(otu_table = otu,
+               sample_data = sample_dt,
+               tax_table = tax)
 
 # write output
 fwrite(kraken_data_with_info, parsed_data_file)
