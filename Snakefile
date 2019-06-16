@@ -59,7 +59,21 @@ rule target:
         'output/010_trimmed/merge_stats.txt',
         expand('output/010_trimmed/{indiv}/readlength.txt',
                indiv=all_indivs),
-        'output/040_phyloseq/filtered_reads_per_indiv.pdf'
+        'output/040_phyloseq/filtered_reads_per_indiv.pdf',
+        'output/040_phyloseq/alpha_diversity.pdf'
+
+
+rule alpha_diversity:
+    input:
+        phyloseq = 'output/040_phyloseq/ps_filtered.Rds',
+    output:
+        plot = 'output/040_phyloseq/alpha_diversity.pdf'
+    log:
+        'output/logs/040_phyloseq/alpha_diversity.log'
+    singularity:
+        bioc_container
+    script:
+        'src/alpha_diversity.R'
 
 
 rule filtered_reads_per_indiv:
@@ -73,7 +87,7 @@ rule filtered_reads_per_indiv:
         bioc_container
     script:
         'src/filtered_reads_per_indiv.R'
-        
+
 
 rule filter_otus:
     input:
