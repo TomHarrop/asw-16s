@@ -14,11 +14,14 @@ library(data.table)
 phyloseq_file <- snakemake@input[["phyloseq"]]
 filtered_phyloseq_file <- snakemake@output[["phyloseq"]]
 
+# dev
+# ps <- readRDS("output/040_phyloseq/ps.Rds")
+
 ########
 # MAIN #
 ########
 
-ps <- readRDS("output/040_phyloseq/ps.Rds")
+ps <- readRDS(phyloseq_file)
 
 #  
 otu_wide <- data.table(otu_table(ps), keep.rownames = TRUE)

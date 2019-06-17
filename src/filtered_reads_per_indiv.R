@@ -15,14 +15,17 @@ library(ggplot2)
 phyloseq_file <- snakemake@input[["phyloseq"]]
 plot_file <- snakemake@output[["plot"]]
 
+# dev
+# ps <- readRDS("output/040_phyloseq/ps_filtered.Rds")
+# ps <- readRDS("output/040_phyloseq/ps.Rds")
+# gp + geom_hline(yintercept = 40e3 / 15)
+# pd_sum[, summary(`Reads per  individual` * 15)]
+
 ########
 # MAIN #
 ########
 
 ps <- readRDS(phyloseq_file)
-
-# dev
-# ps <- readRDS("output/040_phyloseq/ps_filtered.Rds")
 
 sd <- data.table(data.frame(sample_data(ps)), keep.rownames = TRUE)
 

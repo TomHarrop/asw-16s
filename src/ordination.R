@@ -29,7 +29,7 @@ dca <- ordinate(ps)
 dca_dt <- data.table(dca$rproj, keep.rownames = TRUE)
 
 # add sample data
-sd <- data.table(data.frame(sample_data(ps_pruned)),
+sd <- data.table(data.frame(sample_data(ps)),
                  keep.rownames = TRUE)
 pd_wide <- merge(dca_dt, sd)
 pd <- melt(pd_wide, id.vars = c("rn", "Location", "Parasitoid", "Pasture"),
@@ -43,7 +43,7 @@ pd[, xlab := ifelse(Pasture == "Poa",
 pd[, bpgrp := paste(xlab, Parasitoid, sep = "_")]
 
 # plot
-ggplot(pd, aes(y = value,
+gp <- ggplot(pd, aes(y = value,
                x = xlab,
                colour = Parasitoid)) +
     theme(strip.placement = "outside",
