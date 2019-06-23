@@ -253,7 +253,7 @@ rule trim_merge:
         bbduk2 = 'output/logs/010_trimmed/{indiv}_bbduk2.log',
         bbmerge = 'output/logs/010_trimmed/{indiv}_bbmerge.log'
     threads:
-        multiprocessing.cpu_count()
+        3
     singularity:
         bbmap_container
     shell:
