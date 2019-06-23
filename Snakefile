@@ -19,9 +19,10 @@ bbmap_container = 'shub://TomHarrop/singularity-containers:bbmap_38.50b'
 kraken_container = 'shub://TomHarrop/singularity-containers:kraken_2.0.8beta'
 bracken_container = 'shub://TomHarrop/singularity-containers:bracken_2.2'
 bioc_container = 'shub://TomHarrop/singularity-containers:bioconductor_3.9'
+biopython_container= 'shub://TomHarrop/singularity-containers:biopython_1.73'
 
-r1_path = 'data/raw/4826-{indiv}-0-1_S{sindiv}_L001_R1_001.fastq.gz'
-r2_path = 'data/raw/4826-{indiv}-0-1_S{sindiv}_L001_R2_001.fastq.gz'
+r1_path = 'data/raw_full/4826-{indiv}-0-1_S{sindiv}_L001_R1_001.fastq.gz'
+r2_path = 'data/raw_full/4826-{indiv}-0-1_S{sindiv}_L001_R2_001.fastq.gz'
 
 ########
 # MAIN #
@@ -238,7 +239,8 @@ rule readlength:
 
 rule trim_merge:
     input:
-        unpack(indiv_to_fastq)
+        unpack(indiv_to_fastq),
+        # barcodes = 'output/barcodes.fasta' # not currently working
     output:
         fq = 'output/010_trimmed/{indiv}/merged.fastq.gz',
         stats = 'output/010_trimmed/{indiv}/trimstats.txt',
@@ -268,6 +270,8 @@ rule trim_merge:
         'ktrim=l tpe tbo '
         'editdistance=2 '
         'editdistance2=2 '
+        # 'barcodefilter=t '
+        # 'barcodes={input.barcodes} '
         'ref={params.ref} '
         '2> {log.bbduk1} '
         ' | '
@@ -298,3 +302,16 @@ rule trim_merge:
         'out={output.fq} '
         'ziplevel=9 '
         '2> {log.bbduk2} '
+
+rule generate_bc_fasta:
+    input:
+        barcodes = 'data/ogbf_sample_info.csv'
+    output:
+        barcodes = 'output/barcodes.fasta'
+    log:
+        'output/logs/generate_bc_fasta.log'
+    singularity:
+        biopython_container
+    script:
+        'src/generate_bc_fasta.py'
+
